@@ -22,7 +22,7 @@
 #include "concreteentitylist.h"
 #include "entitydatainstantiator.h"
 
-class CKeyValues3Context;
+class CKV3Arena;
 class CEntityClass;
 class CEntityComponentHelper;
 class CEntityKeyValues;
@@ -134,9 +134,8 @@ struct EventQueuePrioritizedEvent_t
 class CEventQueue
 {
 public:
-	CThreadMutex m_Mutex;
+	CAtomicMutex m_Mutex;
 	EventQueuePrioritizedEvent_t m_Events;
-	int m_iListCount;
 };
 
 // Entity notifications //
@@ -155,7 +154,10 @@ struct EntityDormancyChange_t : EntityNotification_t
 struct EntitySpawnInfo_t : EntityNotification_t
 {
 	const CEntityKeyValues* m_pKeyValues;
-	uint64 m_Unk1;
+	int m_Unk1;
+	uint16 m_SpawnOrder;
+	uint8 m_Depth;
+	uint8 m_OriginalSpawnOrder;
 };
 
 struct EntityActivation_t : EntityNotification_t
@@ -213,7 +215,7 @@ public:
 	virtual void		BuildResourceManifest(SpawnGroupHandle_t hSpawnGroup, const CUtlVector<const CEntityKeyValues*>* pEntityKeyValues, const char* pFilterName /* Usually, "mapload" and "cs_respawn"/"respawn". See CSpawnGroupEntityFilterRegistrar ctors */, IEntityPrecacheConfiguration* pConfig, IEntityResourceManifest* pResourceManifest) = 0;
 	virtual void		BuildResourceManifest(const char* pManifestNameOrGroupName, IEntityPrecacheConfiguration* pConfig, IEntityResourceManifest* pResourceManifest) = 0;
 	virtual void		BuildResourceManifest(EntityResourceManifestCreationCallback_t callback, void* pContext, IEntityPrecacheConfiguration* pConfig, IEntityResourceManifest* pResourceManifest) = 0;
-	virtual void		BuildResourceManifestForEntity(const char* pEntityDesignerName, IEntityPrecacheConfiguration* pConfig, IEntityResourceManifest* pResourceManifest, CKeyValues3Context* pEntityAllocator) = 0;
+	virtual void		BuildResourceManifestForEntity(const char* pEntityDesignerName, IEntityPrecacheConfiguration* pConfig, IEntityResourceManifest* pResourceManifest, CKV3Arena* pEntityAllocator) = 0;
 	virtual void		InvokePrecacheCallback(ResourceHandle_t hResource, const EntitySpawnInfo_t* info, IEntityPrecacheConfiguration* pConfig, IEntityResourceManifest* pResourceManifest, SecondaryPrecacheMemberCallback_t callback) = 0;
 	virtual void		AddRefKeyValues(const CEntityKeyValues* pKeyValues) = 0;
 	virtual void		ReleaseKeyValues(const CEntityKeyValues* pKeyValues) = 0;
@@ -260,14 +262,15 @@ public:
 	virtual						~CEntitySystem() = 0;
 
 	// This function is called in CGameEntitySystem::ProcessEventQueue()
-	virtual GameTime_t			unk_001( int ) = 0;
+	virtual GameTime_t			GetCurTime( WorldGroupId_t ) = 0;
 
 	virtual void				ClearEntityDatabase(ClearEntityDatabaseMode_t eMode) = 0;
 	virtual CEntityInstance*	FindEntityProcedural(const char* szName, CEntityInstance* pSearchingEntity = nullptr, CEntityInstance* pActivator = nullptr, CEntityInstance* pCaller = nullptr) = 0;
-	virtual void				OnEntityParentChanged(CEntityInstance* pEntity, CEntityInstance* pNewParent) = 0; // empty function
-	virtual void				OnAddEntity(CEntityInstance* pEnt, CEntityHandle handle) = 0; // empty function
-	virtual void				OnRemoveEntity(CEntityInstance* pEnt, CEntityHandle handle) = 0; // empty function
+	virtual void				OnEntityParentChanged(CEntityInstance* pEntity, CEntityInstance* pNewParent) = 0;
+	virtual void				OnAddEntity(CEntityInstance* pEnt, CEntityHandle handle) = 0;
+	virtual void				OnRemoveEntity(CEntityInstance* pEnt, CEntityHandle handle) = 0;
 	virtual WorldGroupId_t		GetSpawnGroupWorldId(SpawnGroupHandle_t hSpawnGroup) = 0;
+	virtual void				SortEntities(int nCount, const EntitySpawnInfo_t* pInfo) = 0;
 	virtual void				Spawn(int nCount, const EntitySpawnInfo_t* pInfo) = 0;
 	virtual void				Activate(int nCount, const EntityActivation_t* pActivates, ActivateType_t activateType) = 0;
 	virtual void				PostDataUpdate(int nCount, const PostDataUpdateInfo_t *pInfo) = 0;
@@ -289,7 +292,7 @@ public:
 			m_EntityKeyValuesAllocator.Clear();
 	}
 
-	inline CKeyValues3Context* GetEntityKeyValuesAllocator() { return &m_EntityKeyValuesAllocator; }
+	inline CKV3Arena* GetEntityKeyValuesAllocator() { return &m_EntityKeyValuesAllocator; }
 
 	// Search for an entity class by its C++ name, case-insensitive
 	CEntityClass* FindClassByName(const char* szClassName);
@@ -346,7 +349,7 @@ public:
 	IFieldChangeLimitSpew* m_pFieldChangeLimitSpew;
 	CUtlHashtable<fieldtype_t, KeyUnserializerDelegate, MurmurHash2HashFunctor> m_DataDescKeyUnserializers;
 	CUtlScratchMemoryPool m_ComponentUnserializerInfoAllocator;
-	CKeyValues3Context m_EntityKeyValuesAllocator;
+	CKV3Arena m_EntityKeyValuesAllocator;
 	CUtlSymbolTableLargeMT_CI m_Symbols;
 	SpawnGroupHandle_t m_hActiveSpawnGroup;
 	matrix3x4a_t m_vSpawnOriginOffset;

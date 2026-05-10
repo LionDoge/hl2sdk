@@ -16,12 +16,13 @@
 #include "utlvector.h"
 #include "utllinkedlist.h"
 #include "utllinkedlist.h"
+#include "utlcommon.h"
 #include "commonmacros.h"
 #include "generichash.h"
 
 typedef unsigned int UtlHashHandle_t;
 
-template<class Data, typename C = bool (*)( Data const&, Data const& ), typename K = unsigned int (*)( Data const& ) >
+template<class Data, typename C = DefaultEqualFunctor<Data>, typename K = DefaultHashFunctor<Data> >
 class CUtlHash
 {
 public:
@@ -804,7 +805,7 @@ template<class Data, class HashFuncs>
 	int bucketCount = m_aBuckets.Count();
 	for ( int bucket = iter.bucket+1 ; bucket < bucketCount ; ++bucket )
 	{
-		UtlHashFastHandle_t next = m_aBuckets[bucket]; // get the head of the bucket
+		next = m_aBuckets[bucket]; // get the head of the bucket
 		if (next != invalidIndex)
 			return UtlHashFastIterator_t( bucket, next );
 	}

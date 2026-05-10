@@ -21,6 +21,7 @@
 #include "tier0/dbg.h"
 
 #include <limits>
+#include <type_traits>
 
 #define FOR_EACH_LEANVEC( vecName, iteratorName ) \
 	for ( auto iteratorName = vecName.First(); vecName.IsValidIterator( iteratorName ); iteratorName = vecName.Next( iteratorName ) )
@@ -31,9 +32,9 @@ class CUtlLeanVectorBase
 	typedef A CAllocator;
 
 public:
-	enum : I
+	enum : std::make_unsigned_t<I>
 	{
-		EXTERNAL_BUFFER_MARKER = (I { 1 } << (std::numeric_limits<I>::digits - 1))
+		EXTERNAL_BUFFER_MARKER = std::make_unsigned_t<I> { 1 } << ((sizeof( I ) * 8) - 1)
 	};
 
 	// constructor, destructor
@@ -241,11 +242,11 @@ void CUtlLeanVectorBase<T, I, A>::RemoveAll()
 //-----------------------------------------------------------------------------
 template< class T, class I, class A >
 inline void CUtlLeanVectorBase<T, I, A>::Purge()
-{
-	RemoveAll();
-	
+{	
 	if(!IsExternallyAllocated())
 	{
+		RemoveAll();
+
 		if(NumAllocated() > 0)
 		{
 			CAllocator::Free( m_pElements );
@@ -262,9 +263,9 @@ class CUtlLeanVectorFixedGrowableBase
 	typedef A CAllocator;
 
 public:
-	enum : I
+	enum : std::make_unsigned_t<I>
 	{
-		EXTERNAL_BUFFER_MARKER = (I { 1 } << (std::numeric_limits<I>::digits - 1))
+		EXTERNAL_BUFFER_MARKER = std::make_unsigned_t<I> { 1 } << ((sizeof( I ) * 8) - 1)
 	};
 
 	// constructor, destructor
@@ -431,10 +432,10 @@ void CUtlLeanVectorFixedGrowableBase<T, N, I, A>::RemoveAll()
 template< class T, size_t N, class I, class A >
 inline void CUtlLeanVectorFixedGrowableBase<T, N, I, A>::Purge()
 {
-	RemoveAll();
-	
 	if(!IsExternallyAllocated())
 	{
+		RemoveAll();
+
 		if((size_t)NumAllocated() > N)
 			CAllocator::Free( m_pElements );
 
